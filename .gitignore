@@ -1,3 +1,16 @@
+# Secrets
 secrets.toml
+
+# AWS SAM
 .aws-sam/
 samconfig.toml
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
