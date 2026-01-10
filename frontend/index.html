@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Year Goals</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header__left">
+        <div class="brand">Year Goals</div>
+        <div class="muted">Goals + actions, across all years</div>
+      </div>
+      <div class="header__right">
+        <label class="field">
+          <span class="field__label">Year</span>
+          <select id="yearSelect"></select>
+        </label>
+        <button id="refreshBtn" class="btn btn--ghost" type="button">Refresh</button>
+        <button id="lockBtn" class="btn btn--ghost" type="button">Lock</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section id="authPanel" class="panel">
+        <h2 class="panel__title">Unlock</h2>
+        <p class="muted">
+          This app talks to your private API. Paste your admin token once (stored in this browser).
+        </p>
+        <div class="row">
+          <label class="field grow">
+            <span class="field__label">Admin token</span>
+            <input id="tokenInput" type="password" placeholder="X-Admin-Token" autocomplete="off" />
+          </label>
+          <button id="saveTokenBtn" class="btn btn--primary" type="button">Save</button>
+        </div>
+        <div id="authError" class="error hidden"></div>
+      </section>
+
+      <section class="grid">
+        <div class="panel">
+          <h2 class="panel__title">Quick actions</h2>
+          <div class="actions">
+            <button id="bjjBtn" class="btn btn--action" type="button">+ BJJ session</button>
+            <button id="saveBtn" class="btn btn--action" type="button">+ Money saved</button>
+            <button id="readBtn" class="btn btn--action" type="button">+ Reading</button>
+          </div>
+          <div id="actionMsg" class="muted small"></div>
+        </div>
+
+        <div class="panel">
+          <h2 class="panel__title">This year</h2>
+          <div class="cards">
+            <div class="card">
+              <div class="card__label">BJJ sessions</div>
+              <div id="statBjj" class="card__value">—</div>
+            </div>
+            <div class="card">
+              <div class="card__label">Money saved</div>
+              <div id="statSaved" class="card__value">—</div>
+            </div>
+            <div class="card">
+              <div class="card__label">Reading</div>
+              <div id="statRead" class="card__value">—</div>
+            </div>
+          </div>
+          <div id="statsMeta" class="muted small"></div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="panel">
+          <div class="panel__header">
+            <h2 class="panel__title">Recent actions</h2>
+            <button id="clearRecentBtn" class="btn btn--ghost" type="button">Clear view</button>
+          </div>
+          <div id="actionsList" class="list"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__header">
+            <h2 class="panel__title">Goals</h2>
+          </div>
+
+          <div class="row">
+            <label class="field grow">
+              <span class="field__label">New goal</span>
+              <input id="newGoalTitle" type="text" placeholder="e.g. Read 12 books" />
+            </label>
+            <button id="addGoalBtn" class="btn btn--primary" type="button">Add</button>
+          </div>
+
+          <div id="goalsList" class="list"></div>
+        </div>
+      </section>
+
+      <footer class="footer muted small">
+        Backend: <span id="apiBaseLabel"></span>
+      </footer>
+    </main>
+  </body>
+</html>

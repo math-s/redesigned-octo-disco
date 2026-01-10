@@ -1,1 +1,3 @@
 secrets.toml
+.aws-sam/
+samconfig.toml

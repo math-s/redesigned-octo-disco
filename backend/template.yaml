@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Year goals + actions tracker (Lambda + HTTP API + DynamoDB)
+
+Parameters:
+  AllowedOrigin:
+    Type: String
+    Default: "*"
+    Description: GitHub Pages origin (e.g. https://YOURUSER.github.io). Use * only for local testing.
+  AdminToken:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Single-user admin token checked via X-Admin-Token header. Leave empty to disable auth (not recommended).
+
+Resources:
+  YearGoalsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowHeaders:
+          - content-type
+          - x-admin-token
+        AllowMethods:
+          - GET
+          - POST
+          - PATCH
+          - DELETE
+          - OPTIONS
+        AllowOrigins:
+          - !Ref AllowedOrigin
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: year-goals-api
+      CodeUri: .
+      Handler: handler.handler
+      Runtime: python3.12
+      Timeout: 10
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref YearGoalsTable
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+          ADMIN_TOKEN: !Ref AdminToken
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref YearGoalsTable
+      Events:
+        Root:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+
+Outputs:
+  ApiUrl:
+    Description: Base URL for the HTTP API
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
