@@ -4,19 +4,13 @@
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",   // or your preferred base image
 
   // ── Install AWS SAM CLI during container creation ──
-  "postCreateCommand": "bash -c '\
-    curl -sSL https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip -o sam.zip && \
-    unzip -q sam.zip -d sam-installation && \
-    sudo ./sam-installation/install --update && \
-    rm -rf sam.zip sam-installation && \
-    sam --version'",
+  "postCreateCommand": "pip install --no-cache-dir --upgrade aws-sam-cli && sam --version",
 
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
-
   "customizations": {
-        "codespaces": {
+      "codespaces": {
       "openFiles": [
         "README.md",
         "streamlit_app.py"
@@ -26,7 +20,7 @@
       "extensions": [
         "ms-vscode-remote.remote-containers",
         "amazonwebservices.aws-toolkit-vscode",
-                "ms-python.python",
+        "ms-python.python",
         "ms-python.vscode-pylance"   // optional but very helpful
       ]
     }
