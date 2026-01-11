@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from decimal import Decimal
 from typing import Any, Dict
 
 
@@ -15,6 +16,15 @@ def origin_from_event(event: Dict[str, Any]) -> str:
     return allowed if req_origin == allowed else allowed
 
 
+def _json_default(obj: Any) -> Any:
+    # DynamoDB returns numbers as Decimal.
+    if isinstance(obj, Decimal):
+        if obj % 1 == 0:
+            return int(obj)
+        return float(obj)
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
+
 def json_response(status_code: int, body: Dict[str, Any], *, origin: str) -> Dict[str, Any]:
     return {
         "statusCode": status_code,
@@ -25,7 +35,7 @@ def json_response(status_code: int, body: Dict[str, Any], *, origin: str) -> Dic
             "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
             "cache-control": "no-store",
         },
-        "body": json.dumps(body, separators=(",", ":"), ensure_ascii=False),
+        "body": json.dumps(body, separators=(",", ":"), ensure_ascii=False, default=_json_default),
     }
 
 
