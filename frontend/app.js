@@ -2,9 +2,9 @@
 
 // 1) Set this after deploying the backend (SAM output "ApiUrl")
 // Example: https://abc123.execute-api.us-east-1.amazonaws.com
-const API_BASE_URL = "REPLACE_WITH_YOUR_API_BASE_URL";
+const API_BASE_URL = "https://yfbupzcfla.execute-api.us-east-1.amazonaws.com";
 // Optional: change to "BRL", "USD", "EUR", etc.
-const MONEY_CURRENCY = "USD";
+const MONEY_CURRENCY = "BRL";
 
 const STORAGE_TOKEN_KEY = "yeargoals_admin_token";
 
