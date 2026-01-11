@@ -73,6 +73,7 @@
                 <input id="readIsbn" type="text" inputmode="text" placeholder="ISBN-10 or ISBN-13" autocomplete="off" />
               </label>
               <button id="readBtn" class="btn btn--action" type="button">+ Finished book</button>
+              <button id="addBookBtn" class="btn btn--ghost btn--action" type="button">+ Add to library</button>
             </div>
           </div>
           <div id="actionMsg" class="muted small"></div>
@@ -135,6 +136,14 @@
 
           <div id="goalsList" class="list"></div>
         </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <h2 class="panel__title">Library</h2>
+          <button id="refreshBooksBtn" class="btn btn--ghost" type="button">Refresh</button>
+        </div>
+        <div id="booksList" class="list"></div>
       </section>
 
       <footer class="footer muted small">

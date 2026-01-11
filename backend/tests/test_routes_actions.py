@@ -63,9 +63,10 @@ def test_post_action_read_happy_path_looks_up_book(monkeypatch):
 
     monkeypatch.setattr(
         actions_mod,
-        "_google_books_lookup",
+        "google_books_lookup",
         lambda isbn: {
             "googleVolumeId": "vol_123",
+            "googleVolumeInfo": {"title": "The Example Book"},
             "title": "The Example Book",
             "authors": ["Jane Doe"],
             "publishedDate": "2020",
