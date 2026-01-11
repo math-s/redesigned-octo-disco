@@ -90,6 +90,26 @@ function setActionMsg(msg) {
   $("actionMsg").textContent = msg || "";
 }
 
+function toDateInputValue(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function parseDateInputValue(value) {
+  const v = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const y = Number(v.slice(0, 4));
+  const m = Number(v.slice(5, 7));
+  const d = Number(v.slice(8, 10));
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+  if (y < 1970 || y > 3000) return null;
+  if (m < 1 || m > 12) return null;
+  if (d < 1 || d > 31) return null;
+  return { y, v };
+}
+
 function renderGoals(goals) {
   const root = $("goalsList");
   root.innerHTML = "";
@@ -224,7 +244,7 @@ function populateYears(selectedYear) {
   const sel = $("yearSelect");
   sel.innerHTML = "";
   const thisYear = new Date().getFullYear();
-  for (let y = thisYear + 1; y >= 2020; y--) {
+  for (let y = thisYear + 1; y >= 1970; y--) {
     const opt = document.createElement("option");
     opt.value = String(y);
     opt.textContent = String(y);
@@ -268,6 +288,10 @@ async function init() {
   const initialYear = yearFromUrl();
   populateYears(initialYear);
 
+  // Default BJJ date to today (local).
+  const bjjDateEl = $("bjjDate");
+  if (bjjDateEl) bjjDateEl.value = toDateInputValue(new Date());
+
   $("yearSelect").addEventListener("change", refreshAll);
   $("refreshBtn").addEventListener("click", refreshAll);
   $("lockBtn").addEventListener("click", () => {
@@ -289,8 +313,20 @@ async function init() {
 
   $("bjjBtn").addEventListener("click", async () => {
     try {
+      const parsed = parseDateInputValue($("bjjDate")?.value);
+      if (!parsed) throw new Error("Pick a valid BJJ date.");
+
+      // Count it under the selected date's year (and switch the UI year if needed).
+      const desiredYear = parsed.y;
+      if (String(desiredYear) !== String(getSelectedYear())) {
+        $("yearSelect").value = String(desiredYear);
+      }
+
+      // Use a midday local timestamp to avoid timezone shifting the date when displayed.
+      const ts = `${parsed.v}T12:00:00`;
+
       setActionMsg("Recording BJJ…");
-      await postAction("BJJ", {});
+      await postAction("BJJ", { ts });
       setActionMsg("Recorded.");
     } catch (err) {
       setActionMsg("");
