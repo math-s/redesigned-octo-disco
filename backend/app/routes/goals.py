@@ -135,9 +135,10 @@ def patch_goal(
     if "kind" in patch:
         parsed = GoalKind.from_any(patch.get("kind"))
         if parsed is None:
+            valid = "|".join([k.value for k in GoalKind])
             return json_response(
                 400,
-                {"error": "kind must be BJJ_SESSIONS|MONEY_SAVED_CENTS|BOOKS_FINISHED"},
+                {"error": f"kind must be {valid}"},
                 origin=origin,
             )
         allowed["kind"] = parsed.value

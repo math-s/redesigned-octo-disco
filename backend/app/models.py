@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 class ActionType(str, Enum):
     BJJ = "BJJ"
+    PILATES = "PILATES"
     READ = "READ"
     SAVE = "SAVE"
 
@@ -44,6 +45,7 @@ class GoalStatus(str, Enum):
 
 class GoalKind(str, Enum):
     BJJ_SESSIONS = "BJJ_SESSIONS"
+    PILATES_SESSIONS = "PILATES_SESSIONS"
     MONEY_SAVED_CENTS = "MONEY_SAVED_CENTS"
     BOOKS_FINISHED = "BOOKS_FINISHED"
 

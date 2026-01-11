@@ -24,6 +24,23 @@ def test_post_action_bjj_happy_path():
     assert len(table.update_calls) == 1
 
 
+def test_post_action_pilates_happy_path():
+    table = FakeTable()
+
+    resp = post_action(
+        make_event(method="POST", path="/actions", body={"year": 2026, "type": "PILATES"}),
+        origin="*",
+        table=table,
+        now_iso=lambda: "2026-01-01T00:00:00+00:00",
+    )
+
+    assert resp["statusCode"] == 201
+    body = json.loads(resp["body"])
+    assert body["action"]["type"] == "PILATES"
+    assert len(table.put_items) == 1
+    assert len(table.update_calls) == 1
+
+
 def test_post_action_read_requires_valid_isbn():
     table = FakeTable()
 

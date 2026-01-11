@@ -91,7 +91,7 @@ def post_action(
 
     action_type = ActionType.from_any(data.get("type"))
     if action_type is None:
-        return json_response(400, {"error": "type must be BJJ|SAVE|READ"}, origin=origin)
+        return json_response(400, {"error": "type must be BJJ|PILATES|SAVE|READ"}, origin=origin)
 
     ts = str(data.get("ts") or "").strip() or now_iso()
     # Keep ts in ISO format; if user sends something else we still store it, but it impacts sorting.
@@ -116,6 +116,10 @@ def post_action(
         add_parts.append("#bjjCount :b")
         inc_names["#bjjCount"] = "bjjCount"
         inc_vals[":b"] = 1
+    elif action_type == ActionType.PILATES:
+        add_parts.append("#pilatesCount :p")
+        inc_names["#pilatesCount"] = "pilatesCount"
+        inc_vals[":p"] = 1
     elif action_type == ActionType.SAVE:
         amount_cents = data.get("amountCents")
         if not isinstance(amount_cents, int):

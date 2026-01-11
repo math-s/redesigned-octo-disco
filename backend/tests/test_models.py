@@ -3,6 +3,7 @@ from app.models import ActionType, GoalStatus
 
 def test_action_type_from_any():
     assert ActionType.from_any("bjj") == ActionType.BJJ
+    assert ActionType.from_any("pilates") == ActionType.PILATES
     assert ActionType.from_any(" READ ") == ActionType.READ
     assert ActionType.from_any("save") == ActionType.SAVE
     assert ActionType.from_any("") is None
