@@ -11,6 +11,8 @@ class FakeTable:
     update_calls: List[Dict[str, Any]] = field(default_factory=list)
     delete_calls: List[Dict[str, Any]] = field(default_factory=list)
     get_item_result: Dict[str, Any] = field(default_factory=dict)
+    query_calls: List[Dict[str, Any]] = field(default_factory=list)
+    query_result: Dict[str, Any] = field(default_factory=dict)
 
     def get_item(self, **kwargs: Any) -> Dict[str, Any]:
         # Allow tests to pre-seed a return value.
@@ -28,6 +30,10 @@ class FakeTable:
     def delete_item(self, **kwargs: Any) -> Dict[str, Any]:
         self.delete_calls.append(kwargs)
         return {}
+
+    def query(self, **kwargs: Any) -> Dict[str, Any]:
+        self.query_calls.append(kwargs)
+        return dict(self.query_result)
 
 
 def make_event(
