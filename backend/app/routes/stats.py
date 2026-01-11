@@ -18,6 +18,7 @@ def get_stats(event: Dict[str, Any], *, origin: str, table: Any) -> Dict[str, An
     stats = {
         "year": year,
         "bjjCount": int(item.get("bjjCount", 0)),
+        "pilatesCount": int(item.get("pilatesCount", 0)),
         "savedCentsTotal": int(item.get("savedCentsTotal", 0)),
         "readBooksTotal": int(item.get("readBooksTotal", 0)),
         "readCount": int(item.get("readCount", 0)),

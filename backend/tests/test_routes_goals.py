@@ -25,6 +25,23 @@ def test_post_goal_defaults_status_to_todo():
     assert len(table.put_items) == 1
 
 
+def test_post_goal_accepts_pilates_sessions_kind():
+    table = FakeTable()
+
+    resp = post_goal(
+        make_event(method="POST", path="/goals", body={"year": 2026, "kind": "PILATES_SESSIONS", "target": 50}),
+        origin="*",
+        table=table,
+        now_iso=lambda: "2026-01-01T00:00:00+00:00",
+    )
+
+    assert resp["statusCode"] == 201
+    body = json.loads(resp["body"])
+    assert body["goal"]["kind"] == "PILATES_SESSIONS"
+    assert body["goal"]["target"] == 50
+    assert len(table.put_items) == 1
+
+
 def test_patch_goal_validates_status():
     table = FakeTable()
 

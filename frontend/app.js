@@ -114,6 +114,7 @@ function formatGoalTitle(goal) {
   const kind = String(goal.kind || "").toUpperCase();
   const target = Number(goal.target);
   if (kind === "BJJ_SESSIONS") return `BJJ sessions (${target})`;
+  if (kind === "PILATES_SESSIONS") return `Pilates sessions (${target})`;
   if (kind === "MONEY_SAVED_CENTS") return `Money saved (${formatMoneyFromCents(target)})`;
   if (kind === "BOOKS_FINISHED") return `Books finished (${target})`;
   return goal.title || "Goal";
@@ -122,6 +123,7 @@ function formatGoalTitle(goal) {
 function getGoalProgressValue(goal, stats) {
   const kind = String(goal.kind || "").toUpperCase();
   if (kind === "BJJ_SESSIONS") return Number(stats?.bjjCount ?? 0);
+  if (kind === "PILATES_SESSIONS") return Number(stats?.pilatesCount ?? 0);
   if (kind === "MONEY_SAVED_CENTS") return Number(stats?.savedCentsTotal ?? 0);
   if (kind === "BOOKS_FINISHED") return Number(stats?.readBooksTotal ?? 0);
   return null;
@@ -262,6 +264,8 @@ function renderActions(actions) {
     const title =
       a.type === "BJJ"
         ? "BJJ session"
+        : a.type === "PILATES"
+          ? "Pilates session"
         : a.type === "SAVE"
           ? `Saved ${formatMoneyFromCents(a.amountCents)}`
           : a.type === "READ"
@@ -288,6 +292,7 @@ function renderActions(actions) {
 
 function renderStats(stats) {
   $("statBjj").textContent = String(stats.bjjCount ?? 0);
+  $("statPilates").textContent = String(stats.pilatesCount ?? 0);
   $("statSaved").textContent = formatMoneyFromCents(stats.savedCentsTotal ?? 0);
   $("statRead").textContent = `${stats.readBooksTotal ?? 0} books • ${stats.readCount ?? 0} logs`;
   $("statsMeta").textContent = stats.updatedAt ? `Updated ${formatIso(stats.updatedAt)}` : "";
@@ -369,6 +374,10 @@ async function init() {
   const bjjDateEl = $("bjjDate");
   if (bjjDateEl) bjjDateEl.value = toDateInputValue(new Date());
 
+  // Default Pilates date to today (local).
+  const pilatesDateEl = $("pilatesDate");
+  if (pilatesDateEl) pilatesDateEl.value = toDateInputValue(new Date());
+
   $("yearSelect").addEventListener("change", refreshAll);
   $("refreshBtn").addEventListener("click", refreshAll);
   $("lockBtn").addEventListener("click", () => {
@@ -404,6 +413,29 @@ async function init() {
 
       setActionMsg("Recording BJJ…");
       await postAction("BJJ", { ts });
+      setActionMsg("Recorded.");
+    } catch (err) {
+      setActionMsg("");
+      setActionMsg(String(err.message || err));
+    }
+  });
+
+  $("pilatesBtn").addEventListener("click", async () => {
+    try {
+      const parsed = parseDateInputValue($("pilatesDate")?.value);
+      if (!parsed) throw new Error("Pick a valid Pilates date.");
+
+      // Count it under the selected date's year (and switch the UI year if needed).
+      const desiredYear = parsed.y;
+      if (String(desiredYear) !== String(getSelectedYear())) {
+        $("yearSelect").value = String(desiredYear);
+      }
+
+      // Use a midday local timestamp to avoid timezone shifting the date when displayed.
+      const ts = `${parsed.v}T12:00:00`;
+
+      setActionMsg("Recording Pilates…");
+      await postAction("PILATES", { ts });
       setActionMsg("Recorded.");
     } catch (err) {
       setActionMsg("");

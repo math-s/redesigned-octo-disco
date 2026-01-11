@@ -53,6 +53,14 @@
 
             <div class="action">
               <label class="field">
+                <span class="field__label">Pilates session date</span>
+                <input id="pilatesDate" type="date" />
+              </label>
+              <button id="pilatesBtn" class="btn btn--action" type="button">+ Pilates session</button>
+            </div>
+
+            <div class="action">
+              <label class="field">
                 <span class="field__label">Money saved (e.g. 12.34)</span>
                 <input id="saveAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" />
               </label>
@@ -76,6 +84,10 @@
             <div class="card">
               <div class="card__label">BJJ sessions</div>
               <div id="statBjj" class="card__value">—</div>
+            </div>
+            <div class="card">
+              <div class="card__label">Pilates sessions</div>
+              <div id="statPilates" class="card__value">—</div>
             </div>
             <div class="card">
               <div class="card__label">Money saved</div>
@@ -109,6 +121,7 @@
               <span class="field__label">Goal type</span>
               <select id="newGoalKind">
                 <option value="BJJ_SESSIONS">BJJ sessions</option>
+                <option value="PILATES_SESSIONS">Pilates sessions</option>
                 <option value="MONEY_SAVED_CENTS">Money saved</option>
                 <option value="BOOKS_FINISHED">Books finished</option>
               </select>
