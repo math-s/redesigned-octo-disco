@@ -133,6 +133,48 @@ function formatGoalProgressValue(goal, value) {
   return String(value);
 }
 
+function daysLeftInYear(year) {
+  const now = new Date();
+  if (now.getFullYear() !== year) return null;
+  const end = new Date(year, 11, 31, 23, 59, 59, 999);
+  const ms = end.getTime() - now.getTime();
+  if (!Number.isFinite(ms)) return null;
+  const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
+  return Math.max(0, days);
+}
+
+function formatRateHints(goal, stats, year) {
+  const target = typeof goal.target === "number" ? goal.target : null;
+  const progressValue = getGoalProgressValue(goal, stats);
+  if (target === null || progressValue === null) return "";
+  if (!Number.isFinite(target) || !Number.isFinite(progressValue) || target <= 0) return "";
+
+  const remaining = Math.max(0, target - progressValue);
+  if (remaining <= 0) return `<div class="muted small">On pace: already at target.</div>`;
+
+  const daysLeft = daysLeftInYear(year);
+  if (daysLeft === null) return "";
+  if (daysLeft === 0) return `<div class="muted small">EOY is here: ${escapeHtml(formatGoalProgressValue(goal, remaining))} remaining.</div>`;
+
+  const perDay = remaining / daysLeft;
+  const perWeek = perDay * 7;
+  const perMonth = perDay * 30.4375; // avg days/month
+
+  const kind = String(goal.kind || "").toUpperCase();
+  if (kind === "MONEY_SAVED_CENTS") {
+    return `<div class="muted small">To hit by Dec 31: ~${escapeHtml(formatMoneyFromCents(perWeek))}/week (or ~${escapeHtml(
+      formatMoneyFromCents(perMonth),
+    )}/month)</div>`;
+  }
+
+  // Count-based goals: show per-week (most intuitive), plus per-day for tight deadlines.
+  const fmt = (n) => (n < 1 ? n.toFixed(2) : n < 10 ? n.toFixed(1) : String(Math.ceil(n)));
+  const unit = kind === "BOOKS_FINISHED" ? "books" : "sessions";
+  return `<div class="muted small">To hit by Dec 31: ~${escapeHtml(fmt(perWeek))} ${unit}/week (≈ ${escapeHtml(
+    fmt(perDay),
+  )}/${unit.slice(0, -1)}/day)</div>`;
+}
+
 function renderGoals(goals, stats) {
   const root = $("goalsList");
   root.innerHTML = "";
@@ -151,6 +193,7 @@ function renderGoals(goals, stats) {
     const progressValue = getGoalProgressValue(g, stats);
     const hasProgress = target !== null && progressValue !== null && Number.isFinite(progressValue) && target > 0;
     const pct = hasProgress ? Math.max(0, Math.min(100, Math.round((progressValue / target) * 100))) : null;
+    const rateHints = hasProgress ? formatRateHints(g, stats, getSelectedYear()) : "";
     const progressHtml = hasProgress
       ? `
         <div class="progress">
@@ -159,6 +202,7 @@ function renderGoals(goals, stats) {
             <span>${pct}%</span>
           </div>
           <div class="progress__bar"><div class="progress__fill" style="width: ${pct}%"></div></div>
+          ${rateHints}
         </div>
       `
       : "";
