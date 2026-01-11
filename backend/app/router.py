@@ -6,6 +6,7 @@ from .http import json_response
 from .parsing import method as get_method
 from .parsing import path as get_path
 from .routes.actions import get_actions, post_action
+from .routes.books import get_books
 from .routes.goals import delete_goal, get_goals, patch_goal, post_goal
 from .routes.stats import get_stats
 
@@ -37,6 +38,9 @@ def dispatch(
         return post_action(event, origin=origin, table=table, now_iso=now_iso)
     if m == "GET" and p == "/actions":
         return get_actions(event, origin=origin, table=table)
+
+    if m == "GET" and p == "/books":
+        return get_books(event, origin=origin, table=table)
 
     return json_response(404, {"error": "not_found"}, origin=origin)
 

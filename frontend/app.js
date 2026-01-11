@@ -190,7 +190,9 @@ function renderActions(actions) {
         : a.type === "SAVE"
           ? `Saved ${formatMoneyFromCents(a.amountCents)}`
           : a.type === "READ"
-            ? `Reading${a.pages ? ` • ${a.pages} pages` : ""}${a.book ? ` • ${a.book}` : ""}`
+            ? `Finished${a.bookTitle ? ` • ${a.bookTitle}` : ""}${
+                a.bookAuthors && a.bookAuthors.length ? ` • ${a.bookAuthors.join(", ")}` : ""
+              }${a.isbn ? ` • ISBN ${a.isbn}` : ""}`
             : a.type;
 
     const meta = formatIso(a.ts);
@@ -212,7 +214,7 @@ function renderActions(actions) {
 function renderStats(stats) {
   $("statBjj").textContent = String(stats.bjjCount ?? 0);
   $("statSaved").textContent = formatMoneyFromCents(stats.savedCentsTotal ?? 0);
-  $("statRead").textContent = `${stats.readPagesTotal ?? 0} pages • ${stats.readCount ?? 0} logs`;
+  $("statRead").textContent = `${stats.readBooksTotal ?? 0} books • ${stats.readCount ?? 0} logs`;
   $("statsMeta").textContent = stats.updatedAt ? `Updated ${formatIso(stats.updatedAt)}` : "";
 }
 
@@ -330,15 +332,14 @@ async function init() {
       setActionMsg("Recorded.");
     } catch (err) {
       setActionMsg("");
-      window.alert(String(err.message || err));
+      setActionMsg(String(err.message || err));
     }
   });
 
   $("saveBtn").addEventListener("click", async () => {
     try {
-      const amount = window.prompt("How much did you save? (e.g. 12.34)");
-      if (amount === null) return;
-      const v = Number(amount);
+      const raw = $("saveAmount")?.value ?? "";
+      const v = Number(String(raw).trim());
       if (!Number.isFinite(v) || v < 0) throw new Error("Invalid amount");
       const amountCents = Math.round(v * 100);
       setActionMsg("Recording save…");
@@ -346,23 +347,20 @@ async function init() {
       setActionMsg("Recorded.");
     } catch (err) {
       setActionMsg("");
-      window.alert(String(err.message || err));
+      setActionMsg(String(err.message || err));
     }
   });
 
   $("readBtn").addEventListener("click", async () => {
     try {
-      const pagesRaw = window.prompt("Pages read? (integer; optional)", "0");
-      if (pagesRaw === null) return;
-      const pages = Number(pagesRaw);
-      if (!Number.isFinite(pages) || pages < 0 || Math.floor(pages) !== pages) throw new Error("Invalid pages");
-      const book = window.prompt("Book name? (optional)", "");
-      setActionMsg("Recording reading…");
-      await postAction("READ", { pages: pages, book: (book || "").trim() || undefined });
+      const isbn = String($("readIsbn")?.value ?? "").trim();
+      if (!isbn) throw new Error("ISBN is required.");
+      setActionMsg("Looking up book…");
+      await postAction("READ", { isbn });
       setActionMsg("Recorded.");
     } catch (err) {
       setActionMsg("");
-      window.alert(String(err.message || err));
+      setActionMsg(String(err.message || err));
     }
   });
 

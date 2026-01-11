@@ -176,6 +176,12 @@ select:focus {
   grid-template-columns: 1fr;
 }
 
+.action {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
 @media (min-width: 540px) {
   .actions {
     grid-template-columns: 1fr 1fr 1fr;
