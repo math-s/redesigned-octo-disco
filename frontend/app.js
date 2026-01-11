@@ -290,6 +290,32 @@ function renderActions(actions) {
   }
 }
 
+function renderBooks(books) {
+  const root = $("booksList");
+  if (!root) return;
+  root.innerHTML = "";
+
+  if (!books || !books.length) {
+    root.innerHTML = `<div class="muted small">No books in your library yet. Use “Add to library” above.</div>`;
+    return;
+  }
+
+  for (const b of books) {
+    const title = b.title ? `${b.title}` : b.isbn ? `ISBN ${b.isbn}` : "Book";
+    const authors = b.authors && b.authors.length ? ` • ${b.authors.join(", ")}` : "";
+    const meta = b.isbn ? `ISBN ${b.isbn}` : "";
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `
+      <div class="item__top">
+        <div class="item__title">${escapeHtml(title)}${escapeHtml(authors)}</div>
+        <div class="item__meta">${escapeHtml(meta)}</div>
+      </div>
+    `;
+    root.appendChild(el);
+  }
+}
+
 function renderStats(stats) {
   $("statBjj").textContent = String(stats.bjjCount ?? 0);
   $("statPilates").textContent = String(stats.pilatesCount ?? 0);
@@ -344,14 +370,16 @@ async function refreshAll() {
   setAuthError("");
 
   try {
-    const [statsRes, goalsRes, actionsRes] = await Promise.all([
+    const [statsRes, goalsRes, actionsRes, booksRes] = await Promise.all([
       api(`/stats?year=${year}`),
       api(`/goals?year=${year}`),
       api(`/actions?year=${year}&limit=30`),
+      api(`/books?limit=100`),
     ]);
     renderStats(statsRes.stats || {});
     renderGoals(goalsRes.goals || [], statsRes.stats || {});
     renderActions(actionsRes.actions || []);
+    renderBooks(booksRes.books || []);
     setAuthPanelVisible(false);
   } catch (err) {
     // Most common: missing/invalid token
@@ -470,6 +498,22 @@ async function init() {
       setActionMsg(String(err.message || err));
     }
   });
+
+  $("addBookBtn").addEventListener("click", async () => {
+    try {
+      const isbn = String($("readIsbn")?.value ?? "").trim();
+      if (!isbn) throw new Error("ISBN is required.");
+      setActionMsg("Adding to library…");
+      await api("/books", { method: "POST", body: { isbn } });
+      setActionMsg("Added to library.");
+      await refreshAll();
+    } catch (err) {
+      setActionMsg("");
+      setActionMsg(String(err.message || err));
+    }
+  });
+
+  $("refreshBooksBtn")?.addEventListener("click", refreshAll);
 
   $("clearRecentBtn").addEventListener("click", () => {
     $("actionsList").innerHTML = `<div class="muted small">Cleared (refresh to reload).</div>`;
