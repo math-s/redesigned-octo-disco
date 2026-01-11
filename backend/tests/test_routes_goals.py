@@ -11,7 +11,7 @@ def test_post_goal_defaults_status_to_todo():
     table = FakeTable()
 
     resp = post_goal(
-        make_event(method="POST", path="/goals", body={"year": 2026, "title": "Train more"}),
+        make_event(method="POST", path="/goals", body={"year": 2026, "kind": "BJJ_SESSIONS", "target": 100}),
         origin="*",
         table=table,
         now_iso=lambda: "2026-01-01T00:00:00+00:00",
@@ -20,6 +20,8 @@ def test_post_goal_defaults_status_to_todo():
     assert resp["statusCode"] == 201
     body = json.loads(resp["body"])
     assert body["goal"]["status"] == "todo"
+    assert body["goal"]["kind"] == "BJJ_SESSIONS"
+    assert body["goal"]["target"] == 100
     assert len(table.put_items) == 1
 
 

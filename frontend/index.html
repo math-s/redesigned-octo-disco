@@ -106,8 +106,16 @@
 
           <div class="row">
             <label class="field grow">
-              <span class="field__label">New goal</span>
-              <input id="newGoalTitle" type="text" placeholder="e.g. Read 12 books" />
+              <span class="field__label">Goal type</span>
+              <select id="newGoalKind">
+                <option value="BJJ_SESSIONS">BJJ sessions</option>
+                <option value="MONEY_SAVED_CENTS">Money saved</option>
+                <option value="BOOKS_FINISHED">Books finished</option>
+              </select>
+            </label>
+            <label class="field grow">
+              <span class="field__label">Target</span>
+              <input id="newGoalTarget" type="number" inputmode="numeric" step="1" min="1" placeholder="100" />
             </label>
             <button id="addGoalBtn" class="btn btn--primary" type="button">Add</button>
           </div>
