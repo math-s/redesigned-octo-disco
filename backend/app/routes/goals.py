@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 from ..http import json_response
 from ..keys import goal_sk, pk
-from ..models import GoalStatus
+from ..models import GoalKind, GoalStatus
 from ..parsing import parse_json_body, parse_year, querystring
 
 
@@ -29,6 +29,7 @@ def get_goals(event: Dict[str, Any], *, origin: str, table: Any) -> Dict[str, An
                 "id": goal_id,
                 "year": int(it.get("year", year)),
                 "title": it.get("title", ""),
+                "kind": it.get("kind"),
                 "status": it.get("status", GoalStatus.TODO.value),
                 "target": it.get("target"),
                 "createdAt": it.get("createdAt"),
@@ -51,16 +52,27 @@ def post_goal(
         return json_response(400, {"error": err}, origin=origin)
 
     year = parse_year(str(data.get("year")) if data.get("year") is not None else None)
+    kind = GoalKind.from_any(data.get("kind"))
     title = (data.get("title") or "").strip()
     status = GoalStatus.from_any(data.get("status")) or GoalStatus.TODO
     target = data.get("target")
 
     if year is None:
         return json_response(400, {"error": "year is required"}, origin=origin)
-    if not title:
-        return json_response(400, {"error": "title is required"}, origin=origin)
     if data.get("status") is not None and GoalStatus.from_any(data.get("status")) is None:
         return json_response(400, {"error": "status must be todo|doing|done"}, origin=origin)
+
+    # Structured goals (preferred): kind + numeric target.
+    if kind is not None:
+        if not isinstance(target, int) or target <= 0:
+            return json_response(400, {"error": "target must be a positive integer"}, origin=origin)
+        # Title can be omitted for structured goals; the frontend can render from kind/target.
+        if not title:
+            title = kind.value
+    else:
+        # Legacy free-text goal support.
+        if not title:
+            return json_response(400, {"error": "title is required"}, origin=origin)
 
     goal_id = uuid.uuid4().hex
     now = now_iso()
@@ -73,13 +85,24 @@ def post_goal(
         "createdAt": now,
         "updatedAt": now,
     }
+    if kind is not None:
+        item["kind"] = kind.value
     if target is not None:
         item["target"] = target
 
     table.put_item(Item=item)
     return json_response(
         201,
-        {"goal": {"id": goal_id, "year": year, "title": title, "status": status.value, "target": target}},
+        {
+            "goal": {
+                "id": goal_id,
+                "year": year,
+                "title": title,
+                "kind": kind.value if kind is not None else None,
+                "status": status.value,
+                "target": target,
+            }
+        },
         origin=origin,
     )
 
@@ -109,13 +132,25 @@ def patch_goal(
     allowed: Dict[str, Any] = {}
     if "title" in patch:
         allowed["title"] = str(patch.get("title") or "").strip()
+    if "kind" in patch:
+        parsed = GoalKind.from_any(patch.get("kind"))
+        if parsed is None:
+            return json_response(
+                400,
+                {"error": "kind must be BJJ_SESSIONS|MONEY_SAVED_CENTS|BOOKS_FINISHED"},
+                origin=origin,
+            )
+        allowed["kind"] = parsed.value
     if "status" in patch:
         parsed = GoalStatus.from_any(patch.get("status"))
         if parsed is None:
             return json_response(400, {"error": "status must be todo|doing|done"}, origin=origin)
         allowed["status"] = parsed.value
     if "target" in patch:
-        allowed["target"] = patch.get("target")
+        tgt = patch.get("target")
+        if not isinstance(tgt, int) or tgt <= 0:
+            return json_response(400, {"error": "target must be a positive integer"}, origin=origin)
+        allowed["target"] = tgt
 
     if "title" in allowed and not allowed["title"]:
         return json_response(400, {"error": "title cannot be empty"}, origin=origin)
@@ -151,6 +186,7 @@ def patch_goal(
                 "id": goal_id,
                 "year": year,
                 "title": item.get("title", ""),
+                "kind": item.get("kind"),
                 "status": item.get("status", GoalStatus.TODO.value),
                 "target": item.get("target"),
                 "updatedAt": item.get("updatedAt"),

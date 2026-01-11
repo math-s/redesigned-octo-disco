@@ -110,7 +110,30 @@ function parseDateInputValue(value) {
   return { y, v };
 }
 
-function renderGoals(goals) {
+function formatGoalTitle(goal) {
+  const kind = String(goal.kind || "").toUpperCase();
+  const target = Number(goal.target);
+  if (kind === "BJJ_SESSIONS") return `BJJ sessions (${target})`;
+  if (kind === "MONEY_SAVED_CENTS") return `Money saved (${formatMoneyFromCents(target)})`;
+  if (kind === "BOOKS_FINISHED") return `Books finished (${target})`;
+  return goal.title || "Goal";
+}
+
+function getGoalProgressValue(goal, stats) {
+  const kind = String(goal.kind || "").toUpperCase();
+  if (kind === "BJJ_SESSIONS") return Number(stats?.bjjCount ?? 0);
+  if (kind === "MONEY_SAVED_CENTS") return Number(stats?.savedCentsTotal ?? 0);
+  if (kind === "BOOKS_FINISHED") return Number(stats?.readBooksTotal ?? 0);
+  return null;
+}
+
+function formatGoalProgressValue(goal, value) {
+  const kind = String(goal.kind || "").toUpperCase();
+  if (kind === "MONEY_SAVED_CENTS") return formatMoneyFromCents(value);
+  return String(value);
+}
+
+function renderGoals(goals, stats) {
   const root = $("goalsList");
   root.innerHTML = "";
 
@@ -124,16 +147,31 @@ function renderGoals(goals) {
     el.className = "item";
 
     const tagClass = g.status === "done" ? "tag tag--done" : g.status === "doing" ? "tag tag--doing" : "tag";
+    const target = typeof g.target === "number" ? g.target : null;
+    const progressValue = getGoalProgressValue(g, stats);
+    const hasProgress = target !== null && progressValue !== null && Number.isFinite(progressValue) && target > 0;
+    const pct = hasProgress ? Math.max(0, Math.min(100, Math.round((progressValue / target) * 100))) : null;
+    const progressHtml = hasProgress
+      ? `
+        <div class="progress">
+          <div class="progress__meta">
+            <span>${escapeHtml(formatGoalProgressValue(g, progressValue))} / ${escapeHtml(formatGoalProgressValue(g, target))}</span>
+            <span>${pct}%</span>
+          </div>
+          <div class="progress__bar"><div class="progress__fill" style="width: ${pct}%"></div></div>
+        </div>
+      `
+      : "";
     el.innerHTML = `
       <div class="item__top">
-        <div class="item__title">${escapeHtml(g.title)}</div>
+        <div class="item__title">${escapeHtml(formatGoalTitle(g))}</div>
         <div class="item__meta"><span class="${tagClass}">${escapeHtml(g.status)}</span></div>
       </div>
+      ${progressHtml}
       <div class="item__actions">
         <button class="btn btn--ghost" data-act="todo">Todo</button>
         <button class="btn btn--ghost" data-act="doing">Doing</button>
         <button class="btn btn--ghost" data-act="done">Done</button>
-        <button class="btn btn--ghost" data-act="edit">Edit</button>
         <button class="btn btn--ghost" data-act="del">Delete</button>
       </div>
     `;
@@ -150,13 +188,6 @@ function renderGoals(goals) {
         if (act === "del") {
           if (!window.confirm("Delete this goal?")) return;
           await api(`/goals/${encodeURIComponent(g.id)}?year=${year}`, { method: "DELETE" });
-          await refreshAll();
-          return;
-        }
-        if (act === "edit") {
-          const title = window.prompt("Edit goal title:", g.title);
-          if (title === null) return;
-          await api(`/goals/${encodeURIComponent(g.id)}`, { method: "PATCH", body: { year, patch: { title } } });
           await refreshAll();
           return;
         }
@@ -270,7 +301,7 @@ async function refreshAll() {
       api(`/actions?year=${year}&limit=30`),
     ]);
     renderStats(statsRes.stats || {});
-    renderGoals(goalsRes.goals || []);
+    renderGoals(goalsRes.goals || [], statsRes.stats || {});
     renderActions(actionsRes.actions || []);
     setAuthPanelVisible(false);
   } catch (err) {
@@ -369,11 +400,25 @@ async function init() {
   });
 
   $("addGoalBtn").addEventListener("click", async () => {
-    const title = $("newGoalTitle").value.trim();
-    if (!title) return;
     try {
-      await api("/goals", { method: "POST", body: { year: getSelectedYear(), title } });
-      $("newGoalTitle").value = "";
+      const kind = String($("newGoalKind")?.value ?? "").trim();
+      const targetRaw = String($("newGoalTarget")?.value ?? "").trim();
+      if (!kind) throw new Error("Goal type is required.");
+      if (!targetRaw) throw new Error("Target is required.");
+
+      let target;
+      if (kind === "MONEY_SAVED_CENTS") {
+        const v = Number(targetRaw);
+        if (!Number.isFinite(v) || v <= 0) throw new Error("Target must be > 0.");
+        target = Math.round(v * 100);
+      } else {
+        const v = Number(targetRaw);
+        if (!Number.isFinite(v) || v <= 0 || Math.floor(v) !== v) throw new Error("Target must be a positive integer.");
+        target = v;
+      }
+
+      await api("/goals", { method: "POST", body: { year: getSelectedYear(), kind, target } });
+      $("newGoalTarget").value = "";
       await refreshAll();
     } catch (err) {
       window.alert(String(err.message || err));
