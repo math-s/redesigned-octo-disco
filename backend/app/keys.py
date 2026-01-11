@@ -17,3 +17,8 @@ def action_sk(year: int, ts_iso: str, action_id: str) -> str:
 def stats_sk(year: int) -> str:
     return f"STATS#{year}"
 
+
+def book_sk(isbn: str) -> str:
+    # ISBN is stored normalized (digits + optional X).
+    return f"BOOK#{isbn}"
+

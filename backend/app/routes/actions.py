@@ -1,12 +1,77 @@
 from __future__ import annotations
 
+import json
+import re
 import uuid
 from typing import Any, Dict
 
 from ..http import json_response
-from ..keys import action_sk, pk, stats_sk
+from ..keys import action_sk, book_sk, pk, stats_sk
 from ..models import ActionType
 from ..parsing import parse_json_body, parse_year, querystring
+
+
+_ISBN_RE = re.compile(r"^[0-9X]+$")
+
+
+def _normalize_isbn(value: Any) -> str | None:
+    if value is None:
+        return None
+    s = str(value).strip().upper()
+    if not s:
+        return None
+    # Common formatting: hyphens/spaces.
+    s = s.replace("-", "").replace(" ", "")
+    if not _ISBN_RE.match(s):
+        return None
+    if len(s) == 13 and s.isdigit():
+        return s
+    if len(s) == 10 and s[:9].isdigit() and (s[9].isdigit() or s[9] == "X"):
+        return s
+    return None
+
+
+def _google_books_lookup(isbn: str) -> Dict[str, Any] | None:
+    """
+    Returns a subset of Google Books volume fields for a given ISBN.
+    """
+    from urllib.request import Request, urlopen
+
+    url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}"
+    req = Request(url, headers={"accept": "application/json", "user-agent": "yeargoals/1.0"})
+    with urlopen(req, timeout=8) as resp:  # nosec - controlled URL; used for public metadata fetch
+        raw = resp.read().decode("utf-8", errors="replace")
+    data = json.loads(raw or "{}")
+    items = data.get("items") or []
+    if not items:
+        return None
+    first = items[0] or {}
+    volume_info = first.get("volumeInfo") or {}
+
+    title = volume_info.get("title")
+    authors = volume_info.get("authors") or []
+    if not isinstance(authors, list):
+        authors = []
+    authors = [str(a) for a in authors if str(a).strip()]
+
+    image_links = volume_info.get("imageLinks") or {}
+    thumbnail = image_links.get("thumbnail") or image_links.get("smallThumbnail")
+
+    categories = volume_info.get("categories") or []
+    if not isinstance(categories, list):
+        categories = []
+    categories = [str(c) for c in categories if str(c).strip()]
+
+    out: Dict[str, Any] = {
+        "googleVolumeId": first.get("id"),
+        "title": str(title) if title is not None else None,
+        "authors": authors,
+        "publishedDate": volume_info.get("publishedDate"),
+        "pageCount": volume_info.get("pageCount"),
+        "categories": categories,
+        "thumbnail": thumbnail,
+    }
+    return out
 
 
 def post_action(
@@ -60,20 +125,62 @@ def post_action(
         inc_names["#savedCentsTotal"] = "savedCentsTotal"
         inc_vals[":s"] = amount_cents
     elif action_type == ActionType.READ:
-        pages = data.get("pages", 0)
-        if pages is None:
-            pages = 0
-        if not isinstance(pages, int) or pages < 0:
-            return json_response(400, {"error": "READ pages must be a non-negative integer"}, origin=origin)
-        book = data.get("book")
-        if book is not None:
-            item["book"] = str(book)
-        item["pages"] = pages
-        add_parts.append("#readPagesTotal :p")
+        isbn = _normalize_isbn(data.get("isbn"))
+        if isbn is None:
+            return json_response(400, {"error": "READ requires valid isbn (ISBN-10 or ISBN-13)"}, origin=origin)
+
+        try:
+            meta = _google_books_lookup(isbn)
+        except Exception:
+            return json_response(502, {"error": "google_books_lookup_failed"}, origin=origin)
+        if meta is None:
+            return json_response(404, {"error": "book_not_found_for_isbn"}, origin=origin)
+
+        item["isbn"] = isbn
+        if meta.get("title") is not None:
+            item["bookTitle"] = str(meta.get("title"))
+        authors = meta.get("authors") or []
+        if not isinstance(authors, list):
+            authors = []
+        item["bookAuthors"] = [str(a) for a in authors if str(a).strip()]
+        if meta.get("googleVolumeId") is not None:
+            item["googleVolumeId"] = str(meta.get("googleVolumeId"))
+
+        # Upsert a persistent "library" record (deduped by ISBN).
+        now = now_iso()
+        expr_parts = ["updatedAt = :u", "createdAt = if_not_exists(createdAt, :c)", "isbn = :isbn", "authors = :a"]
+        expr_vals: Dict[str, Any] = {":u": now, ":c": now, ":isbn": isbn, ":a": item["bookAuthors"]}
+
+        if meta.get("title") is not None:
+            expr_parts.append("title = :t")
+            expr_vals[":t"] = str(meta.get("title"))
+        if meta.get("publishedDate") is not None:
+            expr_parts.append("publishedDate = :pd")
+            expr_vals[":pd"] = str(meta.get("publishedDate"))
+        if meta.get("pageCount") is not None:
+            expr_parts.append("pageCount = :pc")
+            expr_vals[":pc"] = meta.get("pageCount")
+        if meta.get("categories") is not None:
+            expr_parts.append("categories = :cat")
+            expr_vals[":cat"] = meta.get("categories") or []
+        if meta.get("thumbnail") is not None:
+            expr_parts.append("thumbnail = :th")
+            expr_vals[":th"] = str(meta.get("thumbnail"))
+        if meta.get("googleVolumeId") is not None:
+            expr_parts.append("googleVolumeId = :gvid")
+            expr_vals[":gvid"] = str(meta.get("googleVolumeId"))
+
+        table.update_item(
+            Key={"pk": pk(), "sk": book_sk(isbn)},
+            UpdateExpression="SET " + ", ".join(expr_parts),
+            ExpressionAttributeValues=expr_vals,
+        )
+
+        add_parts.append("#readBooksTotal :rb")
         add_parts.append("#readCount :rc")
-        inc_names["#readPagesTotal"] = "readPagesTotal"
+        inc_names["#readBooksTotal"] = "readBooksTotal"
         inc_names["#readCount"] = "readCount"
-        inc_vals[":p"] = pages
+        inc_vals[":rb"] = 1
         inc_vals[":rc"] = 1
 
     note = data.get("note")
@@ -131,8 +238,9 @@ def get_actions(event: Dict[str, Any], *, origin: str, table: Any) -> Dict[str, 
                 "type": it.get("type"),
                 "ts": it.get("ts"),
                 "amountCents": it.get("amountCents"),
-                "pages": it.get("pages"),
-                "book": it.get("book"),
+                "isbn": it.get("isbn"),
+                "bookTitle": it.get("bookTitle"),
+                "bookAuthors": it.get("bookAuthors") or [],
                 "note": it.get("note"),
             }
         )

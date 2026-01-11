@@ -42,16 +42,30 @@
       <section class="grid">
         <div class="panel">
           <h2 class="panel__title">Quick actions</h2>
-          <div class="row row--wrap row--top">
-            <label class="field grow">
-              <span class="field__label">BJJ session date</span>
-              <input id="bjjDate" type="date" />
-            </label>
-            <button id="bjjBtn" class="btn btn--action" type="button">+ BJJ session</button>
-          </div>
           <div class="actions">
-            <button id="saveBtn" class="btn btn--action" type="button">+ Money saved</button>
-            <button id="readBtn" class="btn btn--action" type="button">+ Reading</button>
+            <div class="action">
+              <label class="field">
+                <span class="field__label">BJJ session date</span>
+                <input id="bjjDate" type="date" />
+              </label>
+              <button id="bjjBtn" class="btn btn--action" type="button">+ BJJ session</button>
+            </div>
+
+            <div class="action">
+              <label class="field">
+                <span class="field__label">Money saved (e.g. 12.34)</span>
+                <input id="saveAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" />
+              </label>
+              <button id="saveBtn" class="btn btn--action" type="button">+ Money saved</button>
+            </div>
+
+            <div class="action">
+              <label class="field">
+                <span class="field__label">Finished book ISBN</span>
+                <input id="readIsbn" type="text" inputmode="text" placeholder="ISBN-10 or ISBN-13" autocomplete="off" />
+              </label>
+              <button id="readBtn" class="btn btn--action" type="button">+ Finished book</button>
+            </div>
           </div>
           <div id="actionMsg" class="muted small"></div>
         </div>
@@ -68,7 +82,7 @@
               <div id="statSaved" class="card__value">—</div>
             </div>
             <div class="card">
-              <div class="card__label">Reading</div>
+              <div class="card__label">Books finished</div>
               <div id="statRead" class="card__value">—</div>
             </div>
           </div>
