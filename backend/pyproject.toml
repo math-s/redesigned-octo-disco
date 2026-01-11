@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "year-goals"
+version = "0.1.0"
+description = "Single-user year goals + actions tracker (AWS Lambda + GitHub Pages)."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "UNLICENSED" }
+authors = [{ name = "Year Goals" }]
+dependencies = []
+
+[project.urls]
+Repository = "."
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+# This repo is primarily a Lambda + static frontend. We intentionally do not
+# package those directories as an installable library.
+where = ["."]
+exclude = ["backend*", "frontend*", ".github*", ".devcontainer*", "tests*"]
