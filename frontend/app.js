@@ -499,7 +499,7 @@ async function init() {
     }
   });
 
-  $("addBookBtn").addEventListener("click", async () => {
+  $("addBookBtn")?.addEventListener("click", async () => {
     try {
       const isbn = String($("readIsbn")?.value ?? "").trim();
       if (!isbn) throw new Error("ISBN is required.");
