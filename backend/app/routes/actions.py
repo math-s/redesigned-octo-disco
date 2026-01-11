@@ -47,6 +47,8 @@ def _google_books_lookup(isbn: str) -> Dict[str, Any] | None:
         return None
     first = items[0] or {}
     volume_info = first.get("volumeInfo") or {}
+    if not isinstance(volume_info, dict):
+        volume_info = {}
 
     title = volume_info.get("title")
     authors = volume_info.get("authors") or []
@@ -64,6 +66,8 @@ def _google_books_lookup(isbn: str) -> Dict[str, Any] | None:
 
     out: Dict[str, Any] = {
         "googleVolumeId": first.get("id"),
+        # Persist the full payload (helps future-proof fields we don't explicitly map yet).
+        "googleVolumeInfo": volume_info,
         "title": str(title) if title is not None else None,
         "authors": authors,
         "publishedDate": volume_info.get("publishedDate"),
@@ -141,19 +145,24 @@ def post_action(
             return json_response(404, {"error": "book_not_found_for_isbn"}, origin=origin)
 
         item["isbn"] = isbn
-        if meta.get("title") is not None:
-            item["bookTitle"] = str(meta.get("title"))
-        authors = meta.get("authors") or []
-        if not isinstance(authors, list):
-            authors = []
-        item["bookAuthors"] = [str(a) for a in authors if str(a).strip()]
-        if meta.get("googleVolumeId") is not None:
-            item["googleVolumeId"] = str(meta.get("googleVolumeId"))
+        # Prefer referencing the persistent BOOK# item over duplicating book metadata on each action.
+        item["bookSk"] = book_sk(isbn)
 
         # Upsert a persistent "library" record (deduped by ISBN).
         now = now_iso()
-        expr_parts = ["updatedAt = :u", "createdAt = if_not_exists(createdAt, :c)", "isbn = :isbn", "authors = :a"]
-        expr_vals: Dict[str, Any] = {":u": now, ":c": now, ":isbn": isbn, ":a": item["bookAuthors"]}
+        authors = meta.get("authors") or []
+        if not isinstance(authors, list):
+            authors = []
+        authors = [str(a) for a in authors if str(a).strip()]
+
+        expr_parts = [
+            "updatedAt = :u",
+            "createdAt = if_not_exists(createdAt, :c)",
+            "isbn = :isbn",
+            "authors = :a",
+            "googleFetchedAt = :gf",
+        ]
+        expr_vals: Dict[str, Any] = {":u": now, ":c": now, ":isbn": isbn, ":a": authors, ":gf": now}
 
         if meta.get("title") is not None:
             expr_parts.append("title = :t")
@@ -173,6 +182,11 @@ def post_action(
         if meta.get("googleVolumeId") is not None:
             expr_parts.append("googleVolumeId = :gvid")
             expr_vals[":gvid"] = str(meta.get("googleVolumeId"))
+        # Always persist the full Google `volumeInfo` payload when available.
+        volume_info = meta.get("googleVolumeInfo")
+        if isinstance(volume_info, dict) and volume_info:
+            expr_parts.append("googleVolumeInfo = :gvi")
+            expr_vals[":gvi"] = volume_info
 
         table.update_item(
             Key={"pk": pk(), "sk": book_sk(isbn)},
@@ -233,18 +247,36 @@ def get_actions(event: Dict[str, Any], *, origin: str, table: Any) -> Dict[str, 
     )
     items = resp.get("Items") or []
     actions = []
+    book_cache: Dict[str, Dict[str, Any]] = {}
     for it in items:
         if action_type_filter and it.get("type") != action_type_filter:
             continue
+        isbn = it.get("isbn")
+        book_title = it.get("bookTitle")
+        book_authors = it.get("bookAuthors") or []
+
+        # Back-compat: older actions stored duplicated book fields; newer actions store only references.
+        if it.get("type") == ActionType.READ.value and isbn and (book_title is None or book_authors is None):
+            if isbn not in book_cache:
+                try:
+                    res = table.get_item(Key={"pk": pk(), "sk": book_sk(str(isbn))})
+                    b = res.get("Item") or {}
+                    book_cache[isbn] = {"title": b.get("title"), "authors": b.get("authors") or []}
+                except Exception:
+                    book_cache[isbn] = {"title": None, "authors": []}
+            book_title = book_title if book_title is not None else book_cache[isbn].get("title")
+            if book_authors is None:
+                book_authors = book_cache[isbn].get("authors") or []
         actions.append(
             {
                 "year": int(it.get("year", year)),
                 "type": it.get("type"),
                 "ts": it.get("ts"),
                 "amountCents": it.get("amountCents"),
-                "isbn": it.get("isbn"),
-                "bookTitle": it.get("bookTitle"),
-                "bookAuthors": it.get("bookAuthors") or [],
+                "isbn": isbn,
+                "bookSk": it.get("bookSk") or (book_sk(str(isbn)) if isbn else None),
+                "bookTitle": book_title,
+                "bookAuthors": book_authors or [],
                 "note": it.get("note"),
             }
         )
